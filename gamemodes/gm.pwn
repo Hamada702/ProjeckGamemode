@@ -40,14 +40,9 @@
 #define SCRIPT_VERSION_MAJOR							0
 #define SCRIPT_VERSION_MINOR							1
 #define SCRIPT_VERSION_PATCH							0
-#define SCRIPT_VERSION_NAME								"DevSuKaSuKaGamemode"
+#define SCRIPT_VERSION_NAME								"CCRP"
 
 // Database MYSQL
-#define MySQL_HOST                                      "127.0.0.1"
-#define MySQL_USER                                      "root"
-#define MySQL_DB                                        "kusukarp"
-#define MySQL_PASS                                      ""
-
 #define LOG_ERROR
 #define LOG_WARNING
 #define LOG_DEBUG
@@ -55,10 +50,6 @@
 //------------------------------------------------------------------------------
 // Server Property Settings
 
-#define MAX_BUILDINGS									32
-#define MAX_CREATED_VEHICLE_PER_PLAYER					1
-#define ADVERTISE_INTERVAL								300000
-#define UPDATE_HOSTNAME_INTERVAL						15000
 
 //------------------------------------------------------------------------------
 
@@ -136,7 +127,8 @@ public OnGameModeInit()
 	print("Initializing...\n");
 	SetGameModeText(SCRIPT_VERSION_NAME " " #SCRIPT_VERSION_MAJOR "." #SCRIPT_VERSION_MINOR "." #SCRIPT_VERSION_PATCH);
 	// Mysql Connection
-	SQL::Connect(MySQL_HOST, MySQL_USER, MySQL_PASS, MySQL_DB, "latin5", 1, 3306, true);
+	//SQL::Connect(MySQL_HOST, MySQL_USER, MySQL_PASS, MySQL_DB, "latin5", 1, 3306, true);
+    mysql_connect_file();
 	if(mysql_errno() != 0)
     {
         print("ERROR: A MySQL-connection could not be established!");
