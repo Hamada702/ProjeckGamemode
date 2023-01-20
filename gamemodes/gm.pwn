@@ -1,21 +1,4 @@
 /**
-#--------------------------------------------------------------#
-# /$$       /$$           /$$      /$$$$$$$$/$$$$$$   /$$$$$$  #
-#| $$      |__/          | $$     |_____ $$/$$$_  $$ /$$__  $$ #
-#| $$$$$$$  /$$ /$$$$$$$ | $$   /$$    /$$/ $$$$\ $$|__/  \ $$ #
-#| $$__  $$| $$| $$__  $$| $$  /$$/   /$$/| $$ $$ $$  /$$$$$$/ #
-#| $$  \ $$| $$| $$  \ $$| $$$$$$/   /$$/ | $$\ $$$$ /$$____/  #
-#| $$  | $$| $$| $$  | $$| $$_  $$  /$$/  | $$ \ $$$| $$       #
-#| $$$$$$$/| $$| $$  | $$| $$ \  $$/$$/   |  $$$$$$/| $$$$$$$$ #
-#|_______/ |__/|__/  |__/|__/  \__/__/     \______/ |________/ #
-#--------------------------------------------------------------#
-
-#------------------------ INDONESIA -------------------------#
-# JANGAN MERUBAH AUTHOR, KALO MAU PAKE NAMA SENDIRI YA BIKIN #
-# KALO GA BISA BIKIN YA BELAJAR, MAAF KALO BANYAK KEKURANGAN #
-# DISCORD : hamdani#6477                                     #
-# xbox    : bink702                                          #
-
 #---------------------- INFO GAMEMODE -----------------------#
 # 															 #
 # Nama Gamemode		:		SuKaSuka-RP 					 #
@@ -49,30 +32,39 @@
 
 //------------------------------------------------------------------------------
 // Server Property Settings
+#define CCRP::%0(%1) forward %0(%1); public %0(%1)
+#define CGEN_MEMORY						20000
+new MySQL: gSQL;
+
+#undef	  	MAX_PLAYERS
+#define	 	MAX_PLAYERS			50
+#define		SECONDS_TO_LOGIN 	30
+#undef     MAX_VEHICLES
+#define     MAX_VEHICLES        500
+
+#define MIN_VIRTUAL_WORLD				(1000000)
+#define MAX_VIRTUAL_WORLD				(1200000)
 
 
-//------------------------------------------------------------------------------
-
-
+#define SCM SendClientMessage
+#define SCMA SendClientMessageToAll
+#define SPD ShowPlayerDialog
+#define Error(%1,%2) SendClientMessage(%1, COLOR_GREY3, ""RED_E"ERROR: "WHITE_E""%2)
+#define Usage(%1,%2) SendClientMessage(%1, COLOR_LIME , ">"SBLUE_E" KEGUNAAN: "WHITEP_E""%2)
+#define Servers(%1,%2) SendClientMessage(%1, COLOR_WHITE, ""SBLUE_E"SERVER: "WHITE_E""%2)
+#define Info(%1,%2) SendClientMessageEx(%1, ANDRE, "INFO: "WHITE_E""%2)
 
 //------------------------------------------------------------------------------
 // Define Include
-
 #include "../modules/Define/colors.pwn"
+#include "../modules/Define/enum.pwn"
 
 //------------------------------------------------------------------------------
-
-
-#define CGEN_MEMORY						20000
-
-//------------------------------------------------------------------------------
-
 // Pawo Include
-
 #include <streamer>
 #include <nex-ac>
 #include <sscanf2>
-#include <easy-mysql>
+#include <a_mysql>
 #include <YSI_Coding\y_hooks>
 #include <YSI_Coding\y_timers>
 #include <YSI_Data\y_iterate>
@@ -85,13 +77,10 @@
 #include <progress2>
 #include <crashdetect>
 #include <sampvoice>
+#include <garageblock>
 
 
 //------------------------------------------------------------------------------
-
-
-//------------------------------------------------------------------------------
-
 // Main Gamemode Scripting
 
 #if defined FILTERSCRIPT
@@ -127,17 +116,28 @@ public OnGameModeInit()
 	print("Initializing...\n");
 	SetGameModeText(SCRIPT_VERSION_NAME " " #SCRIPT_VERSION_MAJOR "." #SCRIPT_VERSION_MINOR "." #SCRIPT_VERSION_PATCH);
 	// Mysql Connection
-	//SQL::Connect(MySQL_HOST, MySQL_USER, MySQL_PASS, MySQL_DB, "latin5", 1, 3306, true);
-    mysql_connect_file();
-	if(mysql_errno() != 0)
-    {
-        print("ERROR: A MySQL-connection could not be established!");
-        mysql_close();
+	mysql_log(ERROR | WARNING);
+    gSQL = mysql_connect_file();
+
+    if(gSQL == MYSQL_INVALID_HANDLE || mysql_errno(gSQL) != 0) {
+
+        new error[128];
+        mysql_error(error, sizeof(error), gSQL);
+        printf("[Database] Failed! Error: [%d] %s", mysql_errno(gSQL), error);
+		mysql_close();
 		SendRconCommand("exit");
-	}
-	else
-	{
+    }
+    else
+    {
+        printf("[Database] Connected!");
+        //CallRemoteFunction("OnDBConnReady", "");
 		print("MySQL-connection established!");
+        ShowPlayerMarkers(0);
+        DisableInteriorEnterExits();
+        EnableStuntBonusForAll(0);
+        BlockGarages(.text="NO ENTER");
+        SetNameTagDrawDistance(10.0000);
+        LimitGlobalChatRadius(10.0000);
 	}
 	return 1;
 }
@@ -150,85 +150,76 @@ public OnGameModeExit()
 
 public OnPlayerRequestClass(playerid, classid)
 {
-	SetPlayerPos(playerid, 143.7643,-70.2287 + 3.0,1.4297);
+	
 	return 1;
 }
 
 hook OnPlayerConnect(playerid)
 {
-	SetPlayerSkin(playerid, 12);
+	loadLogo(playerid);
+
+    GPSMarker[playerid] = 0;
+	SetPlayerColor(playerid, 0xFFFFFFFF);
+	g_MysqlRaceCheck[playerid]++;
+
+    for(new i; i < sizeof(sc_VendingMachines); i++)
+	{
+		RemoveBuildingForPlayer(playerid, sc_VendingMachines[i][e_Model], sc_VendingMachines[i][e_PosX], sc_VendingMachines[i][e_PosY], sc_VendingMachines[i][e_PosZ], 0.25);
+	}
+
+    // reset player data
+	static const empty_player[E_PLAYERS];
+	Player[playerid] = empty_player;
+	GetPlayerName(playerid, Player[playerid][Name], MAX_PLAYER_NAME);
+
+    // cek nama
+    new strPname[128];
+	format(strPname, sizeof(strPname), "Nama %s Tidak Sesuai\nHarap Gunakan Nama Roleplay\nContoh\nJack_Toreto, Gylbert_Timberli, Andreas_Wilson", Player[playerid][Name]);
+	if(!IsValidRoleplayName(Player[playerid][Name])) return ShowPlayerDialog(playerid, DIALOG_INVALID, DIALOG_STYLE_MSGBOX, "UCP", strPname, "Okay", "");
+	
+    // load ucp
+    new Qucp[128];
+	mysql_format(gSQL, Qucp, sizeof Qucp, "SELECT * FROM `ucp` WHERE `ucp_name` = '%s'", Player[playerid][Name]);
+	mysql_query(gSQL, Qucp, true);
+	cache_get_value_name(0, "ucp_name", cUcp[playerid][Uname], 65);
+	cache_get_value_name_int(0, "blacklist", cUcp[playerid][blacklist]);
+	new rows = cache_num_rows();
+	if(!rows) return ShowPlayerDialog(playerid, DIALOG_INVALID, DIALOG_STYLE_MSGBOX, "Login", "UCP tidak terdaftar.", "Okay", "");
+	if(cUcp[playerid][blacklist] == 1) return ShowPlayerDialog(playerid, DIALOG_INVALID, DIALOG_STYLE_MSGBOX, "Login", "UCP blacklist.", "Okay", "");
+
+	// cek login
+	new query[103];
+	mysql_format(gSQL, query, sizeof query, "SELECT * FROM `players` WHERE `username` = '%e' LIMIT 1", Player[playerid][Name]);
+	mysql_tquery(gSQL, query, "OnPlayerDataLoaded", "dd", playerid, g_MysqlRaceCheck[playerid]);
+	cache_delete(rows);
+
 	return 1;
 }
 
-SetPlayerSkinFix(playerid, skinid)
+public OnPlayerDisconnect(playerid, reason)
 {
-    if (!IsPlayerConnected(playerid))
-    {
-        return 0;
-    }
+	destroyLogo(playerid);
+	destroyNotif(playerid);
 
-    new
-        Float:tmpPos[4],
-        vehicleid = GetPlayerVehicleID(playerid),
-        seatid = GetPlayerVehicleSeat(playerid);
-
-    GetPlayerPos(playerid, tmpPos[0], tmpPos[1], tmpPos[2]);
-    GetPlayerFacingAngle(playerid, tmpPos[3]);
-
-    // If the skinid is invalid, less than 0 or more than 311 or is equal to 74 (invalid skin), then do nothing
-    if (0 > skinid > 311 || skinid == 74)
-    {
-        return 0;
-    }
-
-    if (GetPlayerSpecialAction(playerid) == SPECIAL_ACTION_DUCK)
-    {
-        SetPlayerPos(playerid, tmpPos[0], tmpPos[1], tmpPos[2]);
-        SetPlayerFacingAngle(playerid, tmpPos[3]);
-        TogglePlayerControllable(playerid, true); // preventing any freeze - optional
-        return SetPlayerSkin(playerid, skinid);
-    }
-    else if (IsPlayerInAnyVehicle(playerid))
-    {
-        new
-            tmp;
-
-        RemovePlayerFromVehicle(playerid);
-        SetPlayerPos(playerid, tmpPos[0], tmpPos[1], tmpPos[2]);
-        SetPlayerFacingAngle(playerid, tmpPos[3]);
-        TogglePlayerControllable(playerid, true); // preventing any freeze - important! because of doing animations of exiting vehicle
-        tmp = SetPlayerSkin(playerid, skinid);
-        PutPlayerInVehicle(playerid, vehicleid, (seatid == 128) ? 0 : seatid);
-        return tmp;
-    }
-    else
-    {
-        return SetPlayerSkin(playerid, skinid);
-    }
-}
-
-
-YCMD:ucok(playerid, params[], help) 
-{
-	SetPlayerSkin(playerid, 0);
 	return 1;
 }
-
-
-
-
-
 
 //------------------------------------------------------------------------------
 // Include Module To Main Script
 // Include
-#include "../modules/Vehicle/Vehicle.pwn"
-#include "../modules/Vehicle/Spidometer.pwn"
-#include "../modules/Player/playerStatus.pwn"
-#include "../modules/Player/playermenupc.pwn"
-#include "../modules/Player/playerInventory.pwn"
+
 
 
 // Function
-#include "../modules/Function/ClickPlayerTextDraw.pwn"
+#include "../modules/func/sqlfun.pwn"
+#include "../modules/func/sqlquery.pwn"
+
+// Callback
+#include "../modules/callback/dialog.pwn"
+#include "../modules/callback/anticheat.pwn"
+
+// Hook
+#include "../modules/textdraw/notiftd.pwn"
+#include "../modules/textdraw/logo.pwn"
+
 //------------------------------------------------------------------------------

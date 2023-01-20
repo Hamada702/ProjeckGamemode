@@ -11,6 +11,9 @@
 
 //------------------------------------------------------------------------------
 
+#define UTIL::%0(%1) forward %0(%1); public %0(%1)
+new Tag[10] = "[CCRP]";
+
 new aVehicleNames[212][] = {	// Vehicle Names - Betamaster
 	{"Landstalker"},
 	{"Bravura"},
@@ -450,4 +453,62 @@ stock convertTimestamp( timestamp, _form=0 )
     }
 
     return returnstring;
+}
+
+
+stock GetName(playerid)
+{
+    new name[48];
+    GetPlayerName(playerid,name,sizeof(name));
+    return name;
+}
+
+DelayedKick(playerid, time = 500)
+{
+	SetTimerEx("_KickPlayerDelayed", time, false, "d", playerid);
+	return 1;
+}
+
+UTIL::_KickPlayerDelayed(playerid)
+{
+	Kick(playerid);
+	return 1;
+}
+
+UTIL::KickMessagesEx(playerid, reason[128])
+{
+    new str[128];
+    format(str,sizeof(str),"{0000FF}%s{FFFFFF}: Kamu Telah Dikick Dari Server. Alasan {FF0000}%s", Tag, reason);
+    SendClientMessage(playerid,-1,str);
+    new str2[128];
+    format(str2,sizeof(str2),"{0000FF}%s{FFFFFF}: {FFFF00}%s {FFFFFF}Telah Dikick Dari Server. Alasan {FF0000}%s", Tag, GetName(playerid), reason);
+    SendClientMessageToAll(-1,str2);
+    DelayedKick(playerid);
+    return 1;
+}
+
+UTIL::KickMessages(playerid, reason[128])
+{
+    new str[128];
+    format(str,sizeof(str),"{0000FF}%s{FFFFFF}: Kamu Telah Dikick Dari Server. Alasan {FF0000}%s", Tag, reason);
+    SendClientMessage(playerid,-1,str);
+    DelayedKick(playerid);
+    return 1;
+}
+
+IsValidRoleplayName(const name[]) {
+    if(!name[0] || strfind(name, "_") == -1)
+        return 0;
+
+    else for (new i = 0, len = strlen(name); i != len; i ++) {
+    if((i == 0) && (name[i] < 'A' || name[i] > 'Z'))
+            return 0;
+
+        else if((i != 0 && i < len  && name[i] == '_') && (name[i + 1] < 'A' || name[i + 1] > 'Z'))
+            return 0;
+
+        else if((name[i] < 'A' || name[i] > 'Z') && (name[i] < 'a' || name[i] > 'z') && name[i] != '_' && name[i] != '.')
+            return 0;
+    }
+    return 1;
 }
